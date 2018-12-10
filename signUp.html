@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+
+<!-- Website to create a new Publisher and enter their data to firebase -->
+<html>
+
+  <head>
+    <title> Publisher Registration </title>
+    <link rel="stylesheet" href = "stylesheet/main.css">
+    <script src="https://www.gstatic.com/firebasejs/5.5.5/firebase.js"></script>  <!-- Linking to Firebase -->
+    <script>
+      // Initialize Firebase
+      var config = {
+          apiKey: "AIzaSyBXCJmxoXM6UcrievJ1L8IvaH2DMFi4648",
+          authDomain: "cmsc424app.firebaseapp.com",
+          databaseURL: "https://cmsc424app.firebaseio.com",
+          projectId: "cmsc424app",
+          storageBucket: "cmsc424app.appspot.com",
+          messagingSenderId: "684432332519"
+        };
+        firebase.initializeApp(config);
+    </script>                                                                     <!-- End Linking Process -->
+  </head>
+
+  <body>
+
+    <h1> New Publisher Registration </h1>
+    <form>                                                                        <!-- Takes user input to enter to Firebase -->
+      Name: <br>
+      <input type = "text" id = "name"/> <br><br>
+      Address: <br>
+      <input type = "text" id = "address"/> <br><br>
+      Username(Email Address): <br>
+      <input type="text" id="email"/><br><br>
+      Password:<br>
+      <input type="text" id="password"/><br><br>
+      <button type = "button" onclick = "cUser()"> Submit </button>               <!-- Calls script to send data to Firebase -->
+    </form>
+    <button onclick = "login()">Login In</button>
+
+    <script>
+      function cUser(){
+        var name1= document.getElementById("name").value;                         //Getting User data form
+        var address1= document.getElementById("address").value;
+        var email1= document.getElementById("email").value;
+        var password1= document.getElementById("password").value;
+
+
+        firebase.auth().createUserWithEmailAndPassword(email1, password1)         //Creating User in firebase
+            .catch(function(error) {
+          // Handle Errors here.
+          var errorCode = error.code;
+          var errorMessage = error.message;
+
+          console.log(error);
+        });
+
+        var user = firebase.auth().currentUser;
+
+        firebase.auth().onAuthStateChanged(function(user) {                       //If there is a current user send them an email to verify account
+          if (user) { // User exists
+            user.sendEmailVerification().then(function() {                        //Sending email verification
+              //Email Sent
+            }).catch(function(error) {
+              //Error sending email
+            });
+
+            addPublisher(address1,email1,name1);                                  //Adding data to firebase publisher database
+
+          } else {
+            // No user is signed in.
+          }
+        });
+
+        alert("Please Check Your Email for a Verification Link.");
+
+      }
+
+      function addPublisher(addressN,emailN,nameN){                               //Method for adding user to publisher database
+        var database = firebase.database();
+        var ref = database.ref('Publishers');
+
+        var userID = firebase.auth().currentUser.uid;
+
+        var data = {
+          address: addressN,
+          email: emailN,
+          name: nameN
+        }
+
+        ref.child(userID).set(data);
+      }
+
+      function login(){
+        firebase.auth().signOut();
+        window.location.href = "login.html";
+      }
+
+    </script>
+
+  </body>
+
+</html>

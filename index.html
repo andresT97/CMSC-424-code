@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<!-- Page for entering new message into the application from the publisher -->
+
+<html>
+  <head>
+    <title> Publish Message Page </title>
+    <script src="https://www.gstatic.com/firebasejs/5.5.5/firebase.js"></script>  <!-- Connecting to the firebase databse -->
+    <script>
+      // Initialize Firebase
+      var config = {
+          apiKey: "AIzaSyBXCJmxoXM6UcrievJ1L8IvaH2DMFi4648",
+          authDomain: "cmsc424app.firebaseapp.com",
+          databaseURL: "https://cmsc424app.firebaseio.com",
+          projectId: "cmsc424app",
+          storageBucket: "cmsc424app.appspot.com",
+          messagingSenderId: "684432332519"
+        };
+        firebase.initializeApp(config);
+    </script>
+    <style>
+      /* Set the size of the div element that contains the map */
+      #map {
+        height: 400px;  /* The height is 400 pixels */
+        width: 50%;  /* The width is the width of the web page */
+       }
+    </style>
+                                                                <!-- End of connecting process -->
+  </head>
+
+  <body>
+    <h1> Publish Message Form </h1>
+
+    <form>                                                                        <!-- Form for entering data regarding the message -->
+      Message Title: <br>
+      <input type = "text" id = "title"/> <br><br>
+      Message: <br>
+      <input type = "text" id = "message"/> <br><br>
+      Catagory: <br>
+      <input type = "text" id = "category"/> <br><br>
+      Subcatagory (Optional): <br>
+      <input type = "text" id = "subcatagory"/> <br><br>
+      End Date (MM/DD/YYYY): <br>
+      <input type = "text" id = "endDate"/> <br><br>
+      End Time: (HH:MM)<br>
+      <input type = "text" id = "endTime"/> <br><br>
+      AM / PM / 24 <br> (Input 24 for Military time): <br>
+      <input type = "text" id = "endVal"/> <br><br>
+      Range in Miles: <br>
+      <input type = "text" id = "range"/> <br><br>
+      Image: <br>
+      <input type="file" onchange = "setVariable(this)" id = "filename" accept=".gif, .jpeg, .png, .jpg, .JPG, .JPEG" multiple> <br><br>
+      <button type = "button" id = "submitB" onclick = "func()"> Submit </button>
+    </form>                                                                    <!-- End form -->
+    <button onclick = "changePage()">Return Home</button>
+
+    <div style = "left:210px; top:-545px" id="map"></div> <!-- Adjusting location of map -->
+
+
+    <script>  // Initialize and add the map
+      function initMap() {
+      var cpPark = {lat: 38.9875, lng: -76.9401};
+      var map = new google.maps.Map(
+          document.getElementById('map'), {zoom: 4, center: cpPark});
+      marker = new google.maps.Marker({
+        map: map,
+        draggable: true,
+        animation: google.maps.Animation.DROP,
+        position: cpPark
+        });
+      }
+
+    </script>
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDUbv2lzf-Ou5YFiYXFY-JkRSVhOBeWJMQ&callback=initMap">
+    </script> <!-- End map initialization  -->
+
+    <script> //called on image select, sets variables used in the firebase image upload process
+      var fileID = null;
+
+      function setVariable(fileInput){
+        fileID = fileInput.files; //array of file information to be uploaded
+      }
+
+    </script> <!-- End method -->
+
+    <script> //main script for uploading data to firebase data base, handles news publications and assocaited upload criteria
+
+      var id;
+
+      function func(){
+        var title= document.getElementById("title").value;                        //collecting infromation from html form entered by user
+        var message= document.getElementById("message").value;
+        var cat = document.getElementById("category").value;
+        var subcat= document.getElementById("subcatagory").value;
+
+        var endT = ""; //changed based on user input specifications
+        var endDate = document.getElementById("endDate").value;
+        var endTime= document.getElementById("endTime").value;
+        var typeTime = document.getElementById("endVal").value;
+
+        var range= parseInt("" + document.getElementById("range").value);
+        var fileN = document.getElementById("filename").files;                    //end user input collection
+        var test = false; //set to ture if a enterd category already exists
+        var validNums = true; //set to false if user inputs invalid infromation
+
+        var download = null; //holds the download url given by uploadTask function
+
+        var dateArray = endDate.split("/");  //holds date infromation
+        var month = parseInt(dateArray[0]);
+        var day = parseInt(dateArray[1]);
+        var year = parseInt(dateArray[2]);
+
+        var queryString = decodeURIComponent(window.location.search); //gets publisher user name
+        queryString = queryString.substring(1);
+        var usernameL = queryString.split("=");
+        var username = usernameL[1];
+
+        if(year < 0 || day < 0 || month < 0 || month > 12 || day > 31 || month == null || day == null || year == null){ //input chcek
+          validNums = false;
+        }else{
+          if(month < 10){ //conforming user input to database rules
+            endT = endT + "0"+month+"/";
+          }else{
+            endT = endT + month + "/";
+          }
+
+          if((month == 4 || month == 6 || month == 9 || month == 11) && day > 30){ // input check
+            validNums = false;
+          }
+          if(month == 2 && day > 29){
+            validNums = false;
+          }
+
+          if(day < 10){ //conforming user input to database rules
+            endT = endT + "0"+day+"/"+year+", ";
+          }else{
+            endT = endT + day+"/"+year+", ";
+          }
+        }
+
+        var endTimeArray = endTime.split(":");
+        var hour = parseInt(endTimeArray[0]);
+        var min = parseInt(endTimeArray[1]);
+
+        if(hour < 0 || hour > 24 || min < 0 || min > 59){ //input check
+          validNums = false;
+        }else{
+          if(typeTime.valueOf() == "24".valueOf()){ // military time
+            endT = endT + endTime;
+          } else if(typeTime.valueOf() == "AM".valueOf()){ //changing the time based on AM input
+            if(hour > 12){
+              validNums = false;
+            }else{
+              if(hour == 12){
+                endT = endT + "00:"+min;
+              }else if(hour == 11 || hour == 10){
+                endT = endT + endTime;
+              }else{
+                endT = endT + "0" + hour + ":" + min;
+              }
+            }
+          } else if(typeTime.valueOf() == "PM".valueOf()){ //changing the time based on PM input
+            if(hour > 12){
+              validNums = false;
+            }else{
+              if(hour == 12){
+                endT = endT + "12:"+min;
+              }else{
+                var hourU = hour + 12;
+                endT = endT + hourU + ":" + min;
+              }
+            }
+          } else{
+            validNums = false;
+          }
+        }                                                                           //end checking numerical input valies
+
+
+
+        if(validNums){ //if validNums is true data was correctly inputed
+          if(fileN.length != 0){ //if the user wants to upload images
+
+            var database = firebase.database();
+            var ref = database.ref('News');
+            var refP = database.ref('Publishers');
+
+            var usernameList = [];
+            var pubNameList = [];
+            var pubName = "";
+
+            refP.once("value", function(snapshot) {
+              snapshot.forEach(function(child) {
+                usernameList.push(child.child('email').val());
+                pubNameList.push(child.child('name').val());
+              });
+
+              for(var i = 0; i< usernameList.length;i++){
+                  if(usernameList[i] == username){
+                    pubName = pubNameList[i];
+                  }
+              }
+
+            var centerM = {                                                     //center point from map
+              latitude: "" + marker.getPosition().lat(),
+              longitude: "" + marker.getPosition().lng()
+            }
+
+            var endDate = new Date(endT).getTime() / 1000;
+
+            var data = {                                                         //data about the news
+              category: cat,
+              center: centerM,
+              end: endDate,
+              message: message,
+              publisherName: pubName,
+              range: range,
+              subcategory: subcat,
+              title: title
+            }
+
+            var userID = firebase.auth().currentUser.uid;
+
+            var testRef = ref.push(data); // uploading the data and keeping the reference
+
+            var publishesRef = database.ref('Publishes');  // updating the cateories a publisher publishes
+            publishesRef.child(userID).push({Category:cat});
+
+            for(var i = 0; i < fileN.length; i++){ // start for image uploads
+              var name = fileN[i].name;
+              var id = Math.random().toString(36).substr(2, 11);
+
+              var storageRef = firebase.storage().ref(name+id);
+              var uploadTask = storageRef.put(fileID[i]);
+
+              uploadTask.on('state_changed', function(snapshot){
+
+              }, function(error) {
+                // Handle unsuccessful uploads
+              }, function() {
+                // Handle successful uploads on complete
+                uploadTask.snapshot.ref.getDownloadURL().then(function(downloadURL) {
+                    download = downloadURL;
+                    testRef.child('images').push(download);
+
+                });
+              });
+
+            } // end imageUpload
+
+            });
+
+          } else{ //user uploads no image
+
+            var database = firebase.database();
+            var ref = database.ref('News');
+            var refP = database.ref('Publishers');
+
+            var usernameList = [];
+            var pubNameList = [];
+            var pubName = "";
+
+            refP.once("value", function(snapshot) {
+              snapshot.forEach(function(child) {
+                usernameList.push(child.child('email').val());
+                pubNameList.push(child.child('name').val());
+              });
+
+              for(var i = 0; i< usernameList.length;i++){
+                  if(usernameList[i] == username){
+                    pubName = pubNameList[i];
+                  }
+              }
+
+              var centerM = {                                                     //upload data to news
+                latitude: "" + marker.getPosition().lat(),
+                longitude: "" + marker.getPosition().lng()
+              }
+
+              var endDate = new Date(endT).getTime() / 1000;
+
+              var data = {
+                category: cat,
+                center: centerM,
+                end: endDate,
+                message: message,
+                publisherName: pubName,
+                range: range,
+                subcategory: subcat,
+                title: title
+              }
+
+              var userID = firebase.auth().currentUser.uid;
+
+              var testRef = ref.push(data);
+              var publishesRef = database.ref('Publishes');  //uploading the categories that a publisher publishes
+              publishesRef.child(userID).push({Category:cat});
+            });
+
+          } // end upload data
+
+
+          var database = firebase.database();
+          var ref = database.ref('News');        //used in the file/data upload
+
+          var refC = database.ref('Categories');
+
+          var catList = [];
+
+          refC.once("value", function(snapshot) {                                   //update to the categories and subcategories list
+            snapshot.forEach(function(child) {
+              catList.push(child.key);
+            });
+
+            for(var i = 0; i < catList.length; i++){ //checking all categories
+              var k = catList[i];
+              if(k == cat){
+                test = true;
+              }
+            }
+
+            if(test != true){ // subcategory update with a new primary category
+              refC.child(cat).push('None');
+              refC.child(cat).push(subcat);
+            }else{ // subcategory update with a exsisting primary category
+              var refSubC = refC.child(cat);
+              var subArray = [];
+              var testSub = false;
+              refSubC.once('value', function(snapshot) {
+                snapshot.forEach(function(child) {
+                  subArray.push(child.val());
+                });
+                for(var i = 0; i < subArray.length; i++){ //checking all exsisitng subcategories
+                  var k = subArray[i];
+                  if(k == subcat){
+                    testSub = true;
+                  }
+                }
+
+                if(testSub != true){ //adding new subcategory
+                  refC.child(cat).push(subcat);
+                }
+              });
+            }
+          });                                                                       //end category  and subcategory update
+
+          alert("Message Has Been Posted.");
+        } else{ //user input values were invalid
+          alert("Input Values Not Valid.")
+        }
+
+      }
+
+      function gotData(data){
+        var catData = data.val();
+        var keys = Object.keys(catData);
+        console.log(keys);
+
+      }
+
+      function errData(error){
+        console.log(error);
+      }
+
+      function changePage(){
+        window.location.href = "login.html";
+      }
+
+    </script>
+
+  </body>
+
+</html>
